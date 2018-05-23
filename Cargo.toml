@@ -1,0 +1,5 @@
+[workspace]
+members = [
+  "serde_schema",
+  "serde_schema_derive"
+]
