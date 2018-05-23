@@ -6,7 +6,7 @@ extern crate syn;
 
 use std::borrow::Borrow;
 
-use serde_derive_internals::{attr, Ctxt};
+use serde_derive_internals::{ast, attr, Ctxt};
 use syn::DeriveInput;
 
 #[proc_macro_derive(SchemaSerialize)]
@@ -14,16 +14,20 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
     let input: DeriveInput = syn::parse(input).unwrap();
 
     let cx = Ctxt::new();
-    let attr_container = attr::Container::from_ast(&cx, &input);
+    let container = ast::Container::from_ast(&cx, &input);
 
-    let ident = input.ident;
-    let generics = input.generics;
-
-    let inner_impl = match input.data {
-        syn::Data::Struct(data) => derive_struct_impl(data, attr_container, &cx),
-        syn::Data::Enum(data) => derive_enum_impl(data, attr_container, &cx),
-        syn::Data::Union(_) => panic!("unions are not supported yet"),
+    let inner_impl = match container.data {
+        ast::Data::Enum(variants) => derive_enum_impl(variants, &container.attrs),
+        ast::Data::Struct(style, fields) => match style {
+            ast::Style::Struct => derive_struct_named_fields(fields, &container.attrs),
+            ast::Style::Newtype => panic!("newtype structs are not supported yet"),
+            ast::Style::Tuple => panic!("tuple structs are not supported yet"),
+            ast::Style::Unit => derive_struct_unit(&container.attrs),
+        },
     };
+
+    let ident = container.ident;
+    let generics = container.generics;
 
     let expanded = quote!{
         impl #generics ::serde_schema::SchemaSerialize for #ident #generics {
@@ -40,16 +44,15 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
     expanded.into()
 }
 
-fn derive_enum_impl(
-    data: syn::DataEnum,
-    attr_container: attr::Container,
-    cx: &Ctxt,
+fn derive_enum_impl<'a>(
+    variants: Vec<ast::Variant<'a>>,
+    attr_container: &attr::Container,
 ) -> quote::Tokens {
     let name = attr_container.name().serialize_name();
-    let len = data.variants.len();
+    let len = variants.len();
 
     let mut expanded_type_ids = quote!{};
-    for (variant_idx, variant) in data.variants.iter().enumerate() {
+    for (variant_idx, variant) in variants.iter().enumerate() {
         expanded_type_ids.append_all(derive_register_field_types(
             variant_idx,
             variant.fields.iter(),
@@ -61,40 +64,30 @@ fn derive_enum_impl(
             .enum_type(#name, #len)
     };
 
-    for (variant_idx, variant) in data.variants.iter().enumerate() {
-        let attr_variant = attr::Variant::from_ast(cx, variant);
-        match variant.fields {
-            syn::Fields::Named(ref fields) => {
-                let variant_name = attr_variant.name().serialize_name();
-                let fields_len = fields.named.len();
+    for (variant_idx, variant) in variants.iter().enumerate() {
+        let variant_name = variant.attrs.name().serialize_name();
+        let fields_len = variant.fields.len();
+        match variant.style {
+            ast::Style::Struct => {
                 let mut expanded_inner = quote!{
                     .struct_variant(#variant_name, #fields_len)
                 };
-                for (field_idx, field) in fields.named.iter().enumerate() {
-                    expanded_inner.append_all(derive_field(
-                        variant_idx,
-                        field_idx,
-                        field,
-                        &attr_container,
-                        cx,
-                    ));
+                for (field_idx, field) in variant.fields.iter().enumerate() {
+                    expanded_inner.append_all(derive_field(variant_idx, field_idx, field));
                 }
                 expanded_inner.append_all(quote!{
                     .end()
                 });
                 expanded_build_type.append_all(expanded_inner);
             }
-            syn::Fields::Unnamed(ref fields) => {
-                let variant_name = attr_variant.name().serialize_name();
-                if fields.unnamed.len() != 1 {
-                    panic!("tuple variants are not supported yet")
-                }
+            ast::Style::Newtype => {
                 let field_type = variant_field_type_variable(variant_idx, 0);
                 expanded_build_type.append_all(quote!{
                     .newtype_variant(#variant_name, #field_type)
                 });
             }
-            syn::Fields::Unit => panic!("unit variants are not supported yet"),
+            ast::Style::Tuple => panic!("tuple variants are not supported yet"),
+            ast::Style::Unit => panic!("unit variants are not supported yet"),
         }
     }
 
@@ -108,26 +101,14 @@ fn derive_enum_impl(
     }
 }
 
-fn derive_struct_impl(
-    data: syn::DataStruct,
-    attr_container: attr::Container,
-    cx: &Ctxt,
-) -> quote::Tokens {
-    match data.fields {
-        syn::Fields::Named(fields) => derive_struct_named_fields(fields, attr_container, cx),
-        syn::Fields::Unnamed(_fields) => panic!("tuple structs are not supported yet"),
-        syn::Fields::Unit => derive_struct_unit(attr_container),
-    }
-}
-
 fn variant_field_type_variable(variant_idx: usize, field_idx: usize) -> syn::Ident {
     syn::Ident::from(format!("type_id_{}_{}", variant_idx, field_idx))
 }
 
-fn derive_register_field_types<I>(variant_idx: usize, fields: I) -> quote::Tokens
+fn derive_register_field_types<'a, I>(variant_idx: usize, fields: I) -> quote::Tokens
 where
     I: IntoIterator,
-    I::Item: Borrow<syn::Field>,
+    I::Item: Borrow<ast::Field<'a>>,
 {
     let mut expanded = quote!{};
     for (field_idx, field_item) in fields.into_iter().enumerate() {
@@ -142,22 +123,15 @@ where
     expanded
 }
 
-fn derive_field(
-    variant_idx: usize,
-    field_idx: usize,
-    field: &syn::Field,
-    attr_container: &attr::Container,
-    cx: &Ctxt,
-) -> quote::Tokens {
-    let attr_field = attr::Field::from_ast(cx, field_idx, field, None, attr_container.default());
+fn derive_field<'a>(variant_idx: usize, field_idx: usize, field: &ast::Field<'a>) -> quote::Tokens {
     let type_id_ident = variant_field_type_variable(variant_idx, field_idx);
-    let field_name = attr_field.name().serialize_name();
+    let field_name = field.attrs.name().serialize_name();
     quote!{
         .field(#field_name, #type_id_ident)
     }
 }
 
-fn derive_struct_unit(attr_container: attr::Container) -> quote::Tokens {
+fn derive_struct_unit(attr_container: &attr::Container) -> quote::Tokens {
     let name = attr_container.name().serialize_name();
     quote!{
         ::serde_schema::Schema::register_type(schema,
@@ -165,22 +139,21 @@ fn derive_struct_unit(attr_container: attr::Container) -> quote::Tokens {
     }
 }
 
-fn derive_struct_named_fields(
-    fields: syn::FieldsNamed,
-    attr_container: attr::Container,
-    cx: &Ctxt,
+fn derive_struct_named_fields<'a>(
+    fields: Vec<ast::Field<'a>>,
+    attr_container: &attr::Container,
 ) -> quote::Tokens {
-    let len = fields.named.len();
+    let len = fields.len();
     let name = attr_container.name().serialize_name();
 
-    let expanded_type_ids = derive_register_field_types(0, fields.named.iter());
+    let expanded_type_ids = derive_register_field_types(0, fields.iter());
 
     let mut expanded_build_type = quote!{
         serde_schema::types::Type::build()
             .struct_type(#name, #len)
     };
-    for (field_idx, field) in fields.named.iter().enumerate() {
-        expanded_build_type.append_all(derive_field(0, field_idx, field, &attr_container, cx));
+    for (field_idx, field) in fields.iter().enumerate() {
+        expanded_build_type.append_all(derive_field(0, field_idx, field));
     }
     expanded_build_type.append_all(quote!{
         .end()
