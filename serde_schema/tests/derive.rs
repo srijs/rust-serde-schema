@@ -63,6 +63,22 @@ fn unit_struct() {
 }
 
 #[test]
+fn newtype_struct() {
+    #[derive(Serialize, SchemaSerialize)]
+    struct Newtype(i64);
+
+    let mut schema = MockSchema(Vec::new());
+    let type_id = Newtype::schema_register(&mut schema).unwrap();
+
+    assert_eq!(type_id, MockTypeId::Custom(0));
+    assert_eq!(schema.0.len(), 1);
+    assert_eq!(
+        schema.0[0],
+        Type::build().newtype_struct_type("Newtype", MockTypeId::Int64)
+    );
+}
+
+#[test]
 fn struct_point_with_field_rename() {
     #[derive(Serialize, SchemaSerialize)]
     struct Point {

@@ -20,7 +20,7 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
         ast::Data::Enum(variants) => derive_enum_impl(variants, &container.attrs),
         ast::Data::Struct(style, fields) => match style {
             ast::Style::Struct => derive_struct_named_fields(fields, &container.attrs),
-            ast::Style::Newtype => panic!("newtype structs are not supported yet"),
+            ast::Style::Newtype => derive_struct_newtype(fields, &container.attrs),
             ast::Style::Tuple => panic!("tuple structs are not supported yet"),
             ast::Style::Unit => derive_struct_unit(&container.attrs),
         },
@@ -128,6 +128,21 @@ fn derive_field<'a>(variant_idx: usize, field_idx: usize, field: &ast::Field<'a>
     let field_name = field.attrs.name().serialize_name();
     quote!{
         .field(#field_name, #type_id_ident)
+    }
+}
+
+fn derive_struct_newtype<'a>(
+    fields: Vec<ast::Field<'a>>,
+    attr_container: &attr::Container,
+) -> quote::Tokens {
+    let name = attr_container.name().serialize_name();
+    let expanded_type_ids = derive_register_field_types(0, fields.iter());
+    let type_id_ident = variant_field_type_variable(0, 0);
+    quote!{
+        #expanded_type_ids
+        ::serde_schema::Schema::register_type(schema,
+            serde_schema::types::Type::build()
+                .newtype_struct_type(#name, #type_id_ident))
     }
 }
 
