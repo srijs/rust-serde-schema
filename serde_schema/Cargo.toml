@@ -2,6 +2,7 @@
 name = "serde_schema"
 version = "0.1.0"
 authors = ["Sam Rijs <srijs@airpost.net>"]
+license = "MIT/Apache-2.0"
 workspace = ".."
 
 [dependencies]
