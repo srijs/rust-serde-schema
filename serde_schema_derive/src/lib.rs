@@ -20,8 +20,8 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
     let generics = input.generics;
 
     let inner_impl = match input.data {
-        syn::Data::Struct(data) => derive_struct_impl(ident.clone(), data, attr_container, &cx),
-        syn::Data::Enum(data) => derive_enum_impl(ident.clone(), data, attr_container, &cx),
+        syn::Data::Struct(data) => derive_struct_impl(data, attr_container, &cx),
+        syn::Data::Enum(data) => derive_enum_impl(data, attr_container, &cx),
         syn::Data::Union(_) => panic!("unions are not supported yet"),
     };
 
@@ -41,11 +41,11 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
 }
 
 fn derive_enum_impl(
-    ident: syn::Ident,
     data: syn::DataEnum,
     attr_container: attr::Container,
     cx: &Ctxt,
 ) -> quote::Tokens {
+    let name = attr_container.name().serialize_name();
     let len = data.variants.len();
 
     let mut expanded_type_ids = quote!{};
@@ -58,7 +58,7 @@ fn derive_enum_impl(
 
     let mut expanded_build_type = quote!{
         serde_schema::types::Type::build()
-            .enum_type(stringify!(#ident), #len)
+            .enum_type(#name, #len)
     };
 
     for (variant_idx, variant) in data.variants.iter().enumerate() {
@@ -109,13 +109,12 @@ fn derive_enum_impl(
 }
 
 fn derive_struct_impl(
-    ident: syn::Ident,
     data: syn::DataStruct,
     attr_container: attr::Container,
     cx: &Ctxt,
 ) -> quote::Tokens {
     match data.fields {
-        syn::Fields::Named(fields) => derive_struct_named_fields(ident, fields, attr_container, cx),
+        syn::Fields::Named(fields) => derive_struct_named_fields(fields, attr_container, cx),
         syn::Fields::Unnamed(_fields) => panic!("tuple structs are not supported yet"),
         syn::Fields::Unit => derive_struct_unit(attr_container),
     }
@@ -167,18 +166,18 @@ fn derive_struct_unit(attr_container: attr::Container) -> quote::Tokens {
 }
 
 fn derive_struct_named_fields(
-    ident: syn::Ident,
     fields: syn::FieldsNamed,
     attr_container: attr::Container,
     cx: &Ctxt,
 ) -> quote::Tokens {
     let len = fields.named.len();
+    let name = attr_container.name().serialize_name();
 
     let expanded_type_ids = derive_register_field_types(0, fields.named.iter());
 
     let mut expanded_build_type = quote!{
         serde_schema::types::Type::build()
-            .struct_type(stringify!(#ident), #len)
+            .struct_type(#name, #len)
     };
     for (field_idx, field) in fields.named.iter().enumerate() {
         expanded_build_type.append_all(derive_field(0, field_idx, field, &attr_container, cx));
