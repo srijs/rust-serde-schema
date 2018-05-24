@@ -79,6 +79,26 @@ fn newtype_struct() {
 }
 
 #[test]
+fn tuple_struct() {
+    #[derive(Serialize, SchemaSerialize)]
+    struct Tuple(i64, String);
+
+    let mut schema = MockSchema(Vec::new());
+    let type_id = Tuple::schema_register(&mut schema).unwrap();
+
+    assert_eq!(type_id, MockTypeId::Custom(0));
+    assert_eq!(schema.0.len(), 1);
+    assert_eq!(
+        schema.0[0],
+        Type::build()
+            .tuple_struct_type("Tuple", 2)
+            .element(MockTypeId::Int64)
+            .element(MockTypeId::String)
+            .end()
+    );
+}
+
+#[test]
 fn struct_point_with_field_rename() {
     #[derive(Serialize, SchemaSerialize)]
     struct Point {
