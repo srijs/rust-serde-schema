@@ -183,6 +183,43 @@ fn enum_with_unit_variants() {
 }
 
 #[test]
+fn enum_with_tuple_variants() {
+    #[derive(Serialize, SchemaSerialize)]
+    enum Enum {
+        #[allow(unused)]
+        V1(i64, String),
+        #[allow(unused)]
+        V2(i64, bool),
+        #[allow(unused)]
+        V3(i64, u64),
+    }
+
+    let mut schema = MockSchema(Vec::new());
+    let type_id = Enum::schema_register(&mut schema).unwrap();
+
+    assert_eq!(type_id, MockTypeId::Custom(0));
+    assert_eq!(schema.0.len(), 1);
+    assert_eq!(
+        schema.0[0],
+        Type::build()
+            .enum_type("Enum", 3)
+            .tuple_variant("V1", 2)
+            .element(MockTypeId::Int64)
+            .element(MockTypeId::String)
+            .end()
+            .tuple_variant("V2", 2)
+            .element(MockTypeId::Int64)
+            .element(MockTypeId::Boolean)
+            .end()
+            .tuple_variant("V3", 2)
+            .element(MockTypeId::Int64)
+            .element(MockTypeId::Uint64)
+            .end()
+            .end()
+    );
+}
+
+#[test]
 fn enum_with_struct_variants_and_renamed_fields() {
     #[derive(Serialize, SchemaSerialize)]
     enum Enum {

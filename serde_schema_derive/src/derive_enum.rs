@@ -1,7 +1,7 @@
 use quote;
 use serde_derive_internals::{ast, attr};
 
-use super::{derive_field, derive_register_field_types, variant_field_type_variable};
+use super::{derive_element, derive_field, derive_register_field_types, variant_field_type_variable};
 
 pub fn derive_enum<'a>(
     variants: Vec<ast::Variant<'a>>,
@@ -30,7 +30,7 @@ pub fn derive_enum<'a>(
                 derive_struct_variant(&variant_name, variant_idx, &variant.fields)
             }
             ast::Style::Newtype => derive_newtype_variant(&variant_name, variant_idx),
-            ast::Style::Tuple => panic!("tuple variants are not supported yet"),
+            ast::Style::Tuple => derive_tuple_variant(&variant_name, variant_idx, &variant.fields),
             ast::Style::Unit => derive_unit_variant(&variant_name),
         };
         expanded_build_type.append_all(expanded_build_variant);
@@ -70,6 +70,24 @@ fn derive_struct_variant<'a>(
     };
     for (field_idx, field) in fields.iter().enumerate() {
         expanded.append_all(derive_field(variant_idx, field_idx, field));
+    }
+    expanded.append_all(quote!{
+        .end()
+    });
+    expanded
+}
+
+fn derive_tuple_variant<'a>(
+    variant_name: &str,
+    variant_idx: usize,
+    fields: &Vec<ast::Field<'a>>,
+) -> quote::Tokens {
+    let fields_len = fields.len();
+    let mut expanded = quote!{
+        .tuple_variant(#variant_name, #fields_len)
+    };
+    for (field_idx, _) in fields.iter().enumerate() {
+        expanded.append_all(derive_element(variant_idx, field_idx));
     }
     expanded.append_all(quote!{
         .end()
