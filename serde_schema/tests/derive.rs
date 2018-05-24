@@ -155,6 +155,34 @@ fn enum_with_renamed_newtype_variants() {
 }
 
 #[test]
+fn enum_with_unit_variants() {
+    #[derive(Serialize, SchemaSerialize)]
+    enum Enum {
+        #[allow(unused)]
+        V1,
+        #[allow(unused)]
+        V2,
+        #[allow(unused)]
+        V3,
+    }
+
+    let mut schema = MockSchema(Vec::new());
+    let type_id = Enum::schema_register(&mut schema).unwrap();
+
+    assert_eq!(type_id, MockTypeId::Custom(0));
+    assert_eq!(schema.0.len(), 1);
+    assert_eq!(
+        schema.0[0],
+        Type::build()
+            .enum_type("Enum", 3)
+            .unit_variant("V1")
+            .unit_variant("V2")
+            .unit_variant("V3")
+            .end()
+    );
+}
+
+#[test]
 fn enum_with_struct_variants_and_renamed_fields() {
     #[derive(Serialize, SchemaSerialize)]
     enum Enum {

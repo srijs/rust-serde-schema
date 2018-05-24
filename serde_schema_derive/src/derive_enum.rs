@@ -25,29 +25,15 @@ pub fn derive_enum<'a>(
 
     for (variant_idx, variant) in variants.iter().enumerate() {
         let variant_name = variant.attrs.name().serialize_name();
-        let fields_len = variant.fields.len();
-        match variant.style {
+        let expanded_build_variant = match variant.style {
             ast::Style::Struct => {
-                let mut expanded_inner = quote!{
-                    .struct_variant(#variant_name, #fields_len)
-                };
-                for (field_idx, field) in variant.fields.iter().enumerate() {
-                    expanded_inner.append_all(derive_field(variant_idx, field_idx, field));
-                }
-                expanded_inner.append_all(quote!{
-                    .end()
-                });
-                expanded_build_type.append_all(expanded_inner);
+                derive_struct_variant(&variant_name, variant_idx, &variant.fields)
             }
-            ast::Style::Newtype => {
-                let field_type = variant_field_type_variable(variant_idx, 0);
-                expanded_build_type.append_all(quote!{
-                    .newtype_variant(#variant_name, #field_type)
-                });
-            }
+            ast::Style::Newtype => derive_newtype_variant(&variant_name, variant_idx),
             ast::Style::Tuple => panic!("tuple variants are not supported yet"),
-            ast::Style::Unit => panic!("unit variants are not supported yet"),
-        }
+            ast::Style::Unit => derive_unit_variant(&variant_name),
+        };
+        expanded_build_type.append_all(expanded_build_variant);
     }
 
     expanded_build_type.append_all(quote!{
@@ -58,4 +44,35 @@ pub fn derive_enum<'a>(
         #expanded_type_ids
         ::serde_schema::Schema::register_type(schema, #expanded_build_type)
     }
+}
+
+fn derive_unit_variant<'a>(variant_name: &str) -> quote::Tokens {
+    quote!{
+        .unit_variant(#variant_name)
+    }
+}
+
+fn derive_newtype_variant<'a>(variant_name: &str, variant_idx: usize) -> quote::Tokens {
+    let field_type = variant_field_type_variable(variant_idx, 0);
+    quote!{
+        .newtype_variant(#variant_name, #field_type)
+    }
+}
+
+fn derive_struct_variant<'a>(
+    variant_name: &str,
+    variant_idx: usize,
+    fields: &Vec<ast::Field<'a>>,
+) -> quote::Tokens {
+    let fields_len = fields.len();
+    let mut expanded = quote!{
+        .struct_variant(#variant_name, #fields_len)
+    };
+    for (field_idx, field) in fields.iter().enumerate() {
+        expanded.append_all(derive_field(variant_idx, field_idx, field));
+    }
+    expanded.append_all(quote!{
+        .end()
+    });
+    expanded
 }
