@@ -19,7 +19,7 @@ pub fn derive_enum<'a>(
     }
 
     let mut expanded_build_type = quote!{
-        serde_schema::types::Type::build()
+        ::serde_schema::types::Type::build()
             .enum_type(#name, #len)
     };
 

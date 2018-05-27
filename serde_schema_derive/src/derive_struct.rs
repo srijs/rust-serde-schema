@@ -26,7 +26,7 @@ fn derive_struct_newtype<'a>(
     quote!{
         #expanded_type_ids
         ::serde_schema::Schema::register_type(schema,
-            serde_schema::types::Type::build()
+            ::serde_schema::types::Type::build()
                 .newtype_struct_type(#name, #type_id_ident))
     }
 }
@@ -35,7 +35,7 @@ fn derive_struct_unit(attr_container: &attr::Container) -> quote::Tokens {
     let name = attr_container.name().serialize_name();
     quote!{
         ::serde_schema::Schema::register_type(schema,
-            serde_schema::types::Type::build().unit_struct_type(#name))
+            ::serde_schema::types::Type::build().unit_struct_type(#name))
     }
 }
 
@@ -49,7 +49,7 @@ fn derive_struct_named_fields<'a>(
     let expanded_type_ids = derive_register_field_types(0, fields.iter());
 
     let mut expanded_build_type = quote!{
-        serde_schema::types::Type::build()
+        ::serde_schema::types::Type::build()
             .struct_type(#name, #len)
     };
     for (field_idx, field) in fields.iter().enumerate() {
@@ -75,7 +75,7 @@ fn derive_struct_tuple<'a>(
     let expanded_type_ids = derive_register_field_types(0, fields.iter());
 
     let mut expanded_build_type = quote!{
-        serde_schema::types::Type::build()
+        ::serde_schema::types::Type::build()
             .tuple_struct_type(#name, #len)
     };
     for (element_idx, _) in fields.iter().enumerate() {

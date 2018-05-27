@@ -32,7 +32,7 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
     let expanded = quote!{
         impl #generics ::serde_schema::SchemaSerialize for #ident #generics {
             fn schema_register<S>(schema: &mut S) -> Result<S::TypeId, S::Error>
-                where S: serde_schema::Schema
+                where S: ::serde_schema::Schema
             {
                 #inner_impl
             }
