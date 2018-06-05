@@ -12,3 +12,8 @@ proc-macro = true
 quote = "0.5.2"
 serde_derive_internals = "0.23.1"
 syn = "0.13.0"
+
+[dev-dependencies]
+serde = "1.0.39"
+serde_derive = "1.0.42"
+serde_schema = { path = "../serde_schema" }

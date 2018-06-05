@@ -8,8 +8,8 @@ use serde::ser::Serialize;
 #[cfg(feature = "bytes")]
 use serde_bytes::{ByteBuf, Bytes};
 
-use Schema;
 use types::*;
+use Schema;
 
 pub trait SchemaSerialize: Serialize {
     fn schema_register<S: Schema>(schema: &mut S) -> Result<S::TypeId, S::Error>;
