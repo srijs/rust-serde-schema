@@ -8,18 +8,11 @@ use serde::ser::Serialize;
 #[cfg(feature = "bytes")]
 use serde_bytes::{ByteBuf, Bytes};
 
+use Schema;
 use types::*;
-use {Schema, SchemaSerializer};
 
 pub trait SchemaSerialize: Serialize {
     fn schema_register<S: Schema>(schema: &mut S) -> Result<S::TypeId, S::Error>;
-
-    /// This can be overridden when a schema should be used that is dependent on the value,
-    /// and will therefore only be known at runtime.
-    fn schema_serialize<S: SchemaSerializer>(&self, mut s: S) -> Result<S::Ok, S::Error> {
-        let id = Self::schema_register(s.schema_mut())?;
-        self.serialize(s.serializer(id)?)
-    }
 }
 
 // # Implementatiions

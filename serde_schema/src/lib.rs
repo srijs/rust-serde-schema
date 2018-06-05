@@ -10,8 +10,5 @@ pub mod types;
 mod schema;
 pub use self::schema::Schema;
 
-mod serializer;
-pub use self::serializer::SchemaSerializer;
-
 mod serialize;
 pub use self::serialize::SchemaSerialize;
