@@ -47,7 +47,7 @@ primitive_impl!(char, CHAR);
 
 // ## Strings
 
-impl<'a> SchemaSerialize for &'a str {
+impl SchemaSerialize for str {
     #[inline]
     fn schema_register<S: Schema>(_: &mut S) -> Result<S::TypeId, S::Error> {
         Ok(TypeId::STR)
