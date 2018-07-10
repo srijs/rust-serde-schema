@@ -5,6 +5,8 @@ extern crate serde_schema;
 #[macro_use]
 extern crate serde_schema_derive;
 
+use std::borrow::Cow;
+
 use serde::de::value::Error;
 use serde_schema::types::{Type, TypeId};
 use serde_schema::{Schema, SchemaSerialize};
@@ -94,6 +96,29 @@ fn tuple_struct() {
             .tuple_struct_type("Tuple", 2)
             .element(MockTypeId::Int64)
             .element(MockTypeId::String)
+            .end()
+    );
+}
+
+#[test]
+fn struct_with_borrowed_fields() {
+    #[derive(Serialize, SchemaSerialize)]
+    struct Borrow<'a> {
+        raw: &'a str,
+        cow: Cow<'a, str>
+    }
+
+    let mut schema = MockSchema(Vec::new());
+    let type_id = Borrow::schema_register(&mut schema).unwrap();
+
+    assert_eq!(type_id, MockTypeId::Custom(0));
+    assert_eq!(schema.0.len(), 1);
+    assert_eq!(
+        schema.0[0],
+        Type::build()
+            .struct_type("Borrow", 2)
+            .field("raw", MockTypeId::String)
+            .field("cow", MockTypeId::String)
             .end()
     );
 }

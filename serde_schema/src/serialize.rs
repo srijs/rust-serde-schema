@@ -265,28 +265,28 @@ map_impl!(HashMap<K: Eq + Hash, V, H: BuildHasher>);
 
 // ## References
 
-impl<'a, T: SchemaSerialize> SchemaSerialize for &'a T {
+impl<'a, T: SchemaSerialize + ?Sized> SchemaSerialize for &'a T {
     #[inline]
     fn schema_register<S: Schema>(schema: &mut S) -> Result<S::TypeId, S::Error> {
         T::schema_register(schema)
     }
 }
 
-impl<'a, T: SchemaSerialize> SchemaSerialize for &'a mut T {
+impl<'a, T: SchemaSerialize + ?Sized> SchemaSerialize for &'a mut T {
     #[inline]
     fn schema_register<S: Schema>(schema: &mut S) -> Result<S::TypeId, S::Error> {
         T::schema_register(schema)
     }
 }
 
-impl<T: SchemaSerialize> SchemaSerialize for Box<T> {
+impl<T: SchemaSerialize + ?Sized> SchemaSerialize for Box<T> {
     #[inline]
     fn schema_register<S: Schema>(schema: &mut S) -> Result<S::TypeId, S::Error> {
         T::schema_register(schema)
     }
 }
 
-impl<'a, T: SchemaSerialize + ToOwned> SchemaSerialize for Cow<'a, T> {
+impl<'a, T: SchemaSerialize + ToOwned + ?Sized> SchemaSerialize for Cow<'a, T> {
     #[inline]
     fn schema_register<S: Schema>(schema: &mut S) -> Result<S::TypeId, S::Error> {
         T::schema_register(schema)

@@ -27,10 +27,10 @@ pub fn derive_schema_serialize(input: proc_macro::TokenStream) -> proc_macro::To
     };
 
     let ident = container.ident;
-    let generics = container.generics;
+    let (impl_generics, ty_generics, where_clause) = container.generics.split_for_impl();
 
     let expanded = quote!{
-        impl #generics ::serde_schema::SchemaSerialize for #ident #generics {
+        impl #impl_generics ::serde_schema::SchemaSerialize for #ident #ty_generics #where_clause {
             fn schema_register<S>(schema: &mut S) -> Result<S::TypeId, S::Error>
                 where S: ::serde_schema::Schema
             {
